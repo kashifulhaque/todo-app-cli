@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::io::Read;
-use std::str::FromStr;
 
 fn main() {
     let action = std::env::args().nth(1).expect("Please specify an action");
@@ -35,43 +33,33 @@ impl Todo {
         self.map.insert(key, true);
     }
 
-    fn save(self) -> Result<(), std::io::Error> {
-        let mut content = String::new();
-        for (k, v) in self.map {
-            let record = format!("{}\t{}\n", k, v);
-            content.push_str(&record)
-        }
-
-        std::fs::write("db.txt", content)
+    fn save(self) -> Result<(), Box<dyn std::error::Error>> {
+        // Open db.json
+        let f = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open("db.json")?;
+        // Write to db.json with serde
+        serde_json::to_writer_pretty(f, &self.map)?;
+        Ok(())
     }
 
     fn new() -> Result<Todo, std::io::Error> {
-        // Open the db.txt file
-        let mut f = std::fs::OpenOptions::new()
+        // Open the db.json file
+        let f = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
             .read(true)
-            .open("db.txt")?;
+            .open("db.json")?;
 
-        // Read the contents of db.txt into a String variable
-        let mut content = String::new();
-        f.read_to_string(&mut content)?;
-
-        // Allocate an empty HashMap
-        let mut map = HashMap::new();
-
-        // Iterate over every single line in the file db.txt
-        for entries in content.lines() {
-            let mut values = entries.split("\t");
-            let key = values.next().expect("No key!");
-            let val = values.next().expect("No value!");
-
-            // Insert them into the HashMap
-            map.insert(String::from(key), bool::from_str(val).unwrap());
+        // Serialize JSON as HashMap
+        match serde_json::from_reader(f) {
+            Ok(map) => Ok(Todo { map }),
+            Err(e) if e.is_eof() => Ok(Todo {
+                map: HashMap::new(),
+            }),
+            Err(e) => panic!("An error occurred: {}", e),
         }
-
-        // Return OK
-        Ok(Todo { map })
     }
 
     fn complete(&mut self, key: &String) -> Option<()> {
