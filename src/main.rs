@@ -15,6 +15,14 @@ fn main() {
             Ok(_) => println!("TODO saved!"),
             Err(e) => println!("An error occurred: {}", e),
         }
+    } else if action == "complete" {
+        match todo.complete(&item) {
+            None => println!("'{}' is not present in the list", item),
+            Some(_) => match todo.save() {
+                Ok(_) => println!("TODO saved!"),
+                Err(e) => println!("An error occurred: {}", e),
+            },
+        }
     }
 }
 
@@ -64,5 +72,12 @@ impl Todo {
 
         // Return OK
         Ok(Todo { map })
+    }
+
+    fn complete(&mut self, key: &String) -> Option<()> {
+        match self.map.get_mut(key) {
+            Some(v) => Some(*v = false),
+            None => None,
+        }
     }
 }
